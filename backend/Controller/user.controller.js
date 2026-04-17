@@ -2,6 +2,9 @@ const User = require("../models/user.model");
 
 // Register
 module.exports.register = async (req, res) => {
+
+    console.log('------------->',req.body);
+    
   try {
     const { username, password, email } = req.body;
 
