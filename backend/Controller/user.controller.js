@@ -7,36 +7,33 @@ module.exports.register = async (req, res) => {
   try {
     const { username, password, email } = req.body;
 
-    // Check if user exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Create new user
     const newUser = new User({ username, password, email });
     await newUser.save();
 
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
     console.log("--> error", err);
-
     res.status(500).json({ error: err.message });
   }
 };
 
 // Login
 module.exports.login = async (req, res) => {
+    console.log('--------->',req.body);
+    
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+    const user = await User.findOne({ username });
+    console.log('user',user);
+    
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    // Check password (plain text for now)
     if (user.password !== password) {
       return res.status(400).json({ message: "Invalid credentials" });
     }

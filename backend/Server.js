@@ -8,7 +8,7 @@ require('dotenv').config();
 const app = express();
 // Connect to DB
 DbConnect();
-
+app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Hello from Express!");
