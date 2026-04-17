@@ -2,9 +2,8 @@ const User = require("../models/user.model");
 
 // Register
 module.exports.register = async (req, res) => {
+  console.log("------------->", req.body);
 
-    console.log('------------->',req.body);
-    
   try {
     const { username, password, email } = req.body;
 
@@ -20,6 +19,8 @@ module.exports.register = async (req, res) => {
 
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
+    console.log("--> error", err);
+
     res.status(500).json({ error: err.message });
   }
 };
@@ -42,6 +43,7 @@ module.exports.login = async (req, res) => {
 
     res.status(200).json({ message: "Login successful" });
   } catch (err) {
+    console.log("--> error", err);
     res.status(500).json({ error: err.message });
   }
 };
