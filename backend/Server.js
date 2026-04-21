@@ -35,9 +35,6 @@ const io = new Server(server, {
   }
 });
 
-// Connect to DB
-DbConnect();
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -86,6 +83,13 @@ io.on("connection", (socket) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+
+// Connect to DB and start server
+DbConnect().then(() => {
+  server.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+  });
+}).catch((err) => {
+  logger.error(`Failed to start server: ${err.message}`);
+  process.exit(1);
 });

@@ -36,3 +36,5 @@ coverage/
 *.swp
 *.bak
 *.tmp
+.env
+.env.example
