@@ -12,13 +12,15 @@ exports.uploadImage = tryCatch(async (req, res) => {
 
 exports.createPost = tryCatch(async (req, res) => {
   const { caption } = req.body;
+  console.log('File received:', req.file);
+  
   if (!req.file) {
     return res.status(400).json({ message: "Image is required" });
   }
 
   const newPost = new Post({
     user: req.user._id,
-    image: req.file.path,
+    image: req.file.path || req.file.url || req.file.secure_url,
     caption
   });
 
