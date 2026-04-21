@@ -6,6 +6,7 @@ const DbConnect = require("./config/db");
 const authRoutes = require("./routes/auth.route");
 const userRoutes = require("./routes/user.route");
 const postRoutes = require("./routes/post.route");
+const chatRoutes = require("./routes/chat.route");
 const errorHandler = require("./middleware/error.middleware");
 const logger = require("./utils/logger");
 const Message = require("./models/message.model");
