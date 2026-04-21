@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: android-chat-app
+    runtime: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
