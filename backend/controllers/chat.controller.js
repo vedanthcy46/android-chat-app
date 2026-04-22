@@ -1,5 +1,7 @@
 const Message = require("../models/message.model");
 const Conversation = require("../models/conversation.model");
+const User = require("../models/user.model");
+const { sendPushNotification } = require("../config/firebase");
 
 // Create or Get Conversation
 exports.getConversation = async (req, res, next) => {
@@ -18,9 +20,10 @@ exports.getConversation = async (req, res, next) => {
       await conversation.save();
     }
 
-    // Populate members to match the Android data model
+    // Populate members and lastMessage to match the Android data model
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate("members", "username profilePic");
+      .populate("members", "username profilePic")
+      .populate("lastMessage");
 
     res.status(200).json(populatedConversation);
   } catch (err) {
@@ -54,9 +57,30 @@ exports.sendMessage = async (req, res, next) => {
     await newMessage.save();
 
     // Update conversation with last message reference
-    await Conversation.findByIdAndUpdate(conversationId, {
+    const conversation = await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: newMessage._id
     });
+
+    // Send Push Notification to receiver
+    if (conversation) {
+      const receiverId = conversation.members.find(id => id.toString() !== req.user._id.toString());
+      if (receiverId) {
+        const receiver = await User.findById(receiverId);
+        if (receiver && receiver.fcmToken) {
+          sendPushNotification(
+            receiver.fcmToken,
+            "New Message",
+            `${req.user.username}: ${text}`,
+            {
+              type: "message",
+              conversationId: conversationId,
+              senderId: req.user._id.toString()
+            }
+          );
+        }
+      }
+    }
+
     res.status(201).json(newMessage);
   } catch (err) {
     next(err);

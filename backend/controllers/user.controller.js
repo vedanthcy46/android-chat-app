@@ -1,15 +1,12 @@
 const User = require("../models/user.model");
 const logger = require("../utils/logger");
 const tryCatch = require("../utils/tryCatch");
+const { sendPushNotification } = require("../config/firebase");
 
-exports.getProfileById = tryCatch(async (req, res) => {
-  const { id } = req.params;
-  const user = await User.findById(id).select("-password");
+exports.getUserProfile = tryCatch(async (req, res) => {
+  const user = await User.findById(req.params.id).select("-password");
   
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-  
+  if (!user) return res.status(404).json({ message: "User not found" });
   res.status(200).json(user);
 });
 
@@ -77,9 +74,31 @@ exports.followUnfollowUser = tryCatch(async (req, res) => {
   } else {
     currentUser.following.push(id);
     userToFollow.followers.push(req.user._id);
+    
+    // Send Push Notification
+    if (userToFollow.fcmToken) {
+      sendPushNotification(
+        userToFollow.fcmToken,
+        "New Follower",
+        `${currentUser.username} started following you`,
+        {
+          type: "follow",
+          userId: req.user._id.toString()
+        }
+      );
+    }
+
     res.status(200).json({ message: "Followed successfully" });
   }
 
   await currentUser.save();
   await userToFollow.save();
+});
+
+exports.updateFcmToken = tryCatch(async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ message: "Token is required" });
+
+  await User.findByIdAndUpdate(req.user._id, { fcmToken: token });
+  res.status(200).json({ message: "FCM Token updated successfully" });
 });
