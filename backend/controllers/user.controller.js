@@ -26,8 +26,9 @@ exports.searchUsers = tryCatch(async (req, res) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ message: "Search query is required" });
 
+  const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const users = await User.find({
-    username: { $regex: q, $options: "i" }
+    username: { $regex: escapedQuery, $options: "i" }
   }).select("username email profilePic bio followers following");
 
   res.status(200).json(users);
@@ -37,18 +38,21 @@ exports.updateProfile = tryCatch(async (req, res) => {
   const { username, bio, profilePic } = req.body;
   const user = await User.findById(req.user._id);
 
-  if (username) {
-    const existingUser = await User.findOne({ username });
-    if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
-      return res.status(400).json({ message: "Username already taken" });
+  if (username !== undefined) {
+    if (username.length > 0) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      user.username = username;
     }
-    user.username = username;
   }
-  if (bio) user.bio = bio;
-  if (profilePic) user.profilePic = profilePic;
+  
+  if (bio !== undefined) user.bio = bio;
+  if (profilePic !== undefined) user.profilePic = profilePic;
 
   await user.save();
-  res.status(200).json({ message: "Profile updated", user });
+  res.status(200).json(user);
 });
 
 exports.followUnfollowUser = tryCatch(async (req, res) => {

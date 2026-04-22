@@ -41,6 +41,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Force UTF-8 for all JSON responses
+app.use((req, res, next) => {
+  res.header("Content-Type", "application/json; charset=utf-8");
+  next();
+});
+
 // Routes
 app.get("/", (req, res) => {
   res.send("Social Media API is running...");

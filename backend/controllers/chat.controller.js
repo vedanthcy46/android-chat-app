@@ -18,7 +18,11 @@ exports.getConversation = async (req, res, next) => {
       await conversation.save();
     }
 
-    res.status(200).json(conversation);
+    // Populate members to match the Android data model
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate("members", "username profilePic");
+
+    res.status(200).json(populatedConversation);
   } catch (err) {
     next(err);
   }
