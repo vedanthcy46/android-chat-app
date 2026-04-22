@@ -29,7 +29,9 @@ exports.getUserConversations = async (req, res, next) => {
   try {
     const conversations = await Conversation.find({
       members: { $in: [req.user._id] }
-    }).populate("members", "username profilePic");
+    })
+    .populate("members", "username profilePic")
+    .populate("lastMessage");
     res.status(200).json(conversations);
   } catch (err) {
     next(err);
@@ -46,6 +48,11 @@ exports.sendMessage = async (req, res, next) => {
       text
     });
     await newMessage.save();
+
+    // Update conversation with last message reference
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessage: newMessage._id
+    });
     res.status(201).json(newMessage);
   } catch (err) {
     next(err);

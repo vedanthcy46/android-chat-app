@@ -4,7 +4,7 @@ const tryCatch = require("../utils/tryCatch");
 
 exports.getProfileById = tryCatch(async (req, res) => {
   const { id } = req.params;
-  const user = await User.findById(id).select("-password").populate("followers following", "username profilePic");
+  const user = await User.findById(id).select("-password");
   
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -13,13 +13,22 @@ exports.getProfileById = tryCatch(async (req, res) => {
   res.status(200).json(user);
 });
 
+exports.getUsersByIds = tryCatch(async (req, res) => {
+  const { ids } = req.query;
+  if (!ids) return res.status(200).json([]);
+  
+  const idArray = ids.split(",");
+  const users = await User.find({ _id: { $in: idArray } }).select("username profilePic email");
+  res.status(200).json(users);
+});
+
 exports.searchUsers = tryCatch(async (req, res) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ message: "Search query is required" });
 
   const users = await User.find({
     username: { $regex: q, $options: "i" }
-  }).select("username profilePic bio");
+  }).select("username email profilePic bio followers following");
 
   res.status(200).json(users);
 });

@@ -5,33 +5,53 @@ const tryCatch = require("../utils/tryCatch");
 
 exports.uploadImage = tryCatch(async (req, res) => {
   if (!req.file) {
+    logger.error("Upload Error: No file in request");
     return res.status(400).json({ message: "No image file provided" });
   }
-  res.status(200).json({ url: req.file.path });
+  
+  // Cloudinary storage provides 'path', 'url', or 'secure_url'
+  const imageUrl = req.file.path || req.file.url || req.file.secure_url;
+  
+  if (!imageUrl) {
+    logger.error(`Upload Error: File uploaded but no URL found in: ${JSON.stringify(req.file)}`);
+    return res.status(500).json({ message: "Image uploaded but URL not found" });
+  }
+
+  logger.info(`Image uploaded successfully: ${imageUrl}`);
+  res.status(200).json({ url: imageUrl });
 });
 
 exports.createPost = tryCatch(async (req, res) => {
-  const { caption } = req.body;
-  console.log('File received:', req.file);
+  const { caption, image } = req.body;
   
-  if (!req.file) {
+  const imageUrl = req.file ? (req.file.path || req.file.url || req.file.secure_url) : image;
+
+  if (!imageUrl) {
     return res.status(400).json({ message: "Image is required" });
   }
 
   const newPost = new Post({
     user: req.user._id,
-    image: req.file.path || req.file.url || req.file.secure_url,
-    caption
+    image: imageUrl,
+    caption: caption || ""
   });
 
-  await newPost.save();
-  logger.info(`New post created by user: ${req.user.username}`);
-  res.status(201).json(newPost);
+  try {
+    await newPost.save();
+    const populatedPost = await Post.findById(newPost._id).populate("user", "username profilePic");
+    logger.info(`New post created by user: ${req.user.username}`);
+    res.status(201).json(populatedPost);
+  } catch (err) {
+    logger.error(`Post Save Error: ${err.message}`);
+    res.status(500).json({ message: "Failed to save post", error: err.message });
+  }
 });
 
 exports.getAllPosts = tryCatch(async (req, res) => {
   const posts = await Post.find()
     .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic")
     .sort({ createdAt: -1 });
   res.status(200).json(posts);
 });
@@ -42,6 +62,8 @@ exports.getFeed = tryCatch(async (req, res) => {
 
   const feedPosts = await Post.find({ user: { $in: [...followingIds, req.user._id] } })
     .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic")
     .sort({ createdAt: -1 });
 
   res.status(200).json(feedPosts);
@@ -60,23 +82,42 @@ exports.likePost = tryCatch(async (req, res) => {
   }
 
   await post.save();
-  res.status(200).json({ message: isLiked ? "Unliked" : "Liked", likesCount: post.likes.length });
+  const updatedPost = await Post.findById(post._id).populate("user", "username profilePic");
+  res.status(200).json(updatedPost);
 });
 
 exports.savePost = tryCatch(async (req, res) => {
   const user = await User.findById(req.user._id);
-  const postId = req.params.id;
+  const post = await Post.findById(req.params.id);
+  
+  if (!post) return res.status(404).json({ message: "Post not found" });
 
-  const isSaved = user.savedPosts.includes(postId);
+  const isSavedInUser = user.savedPosts.includes(post._id);
+  const isSavedInPost = post.saves.includes(req.user._id);
 
-  if (isSaved) {
-    user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId);
+  if (isSavedInUser) {
+    user.savedPosts = user.savedPosts.filter(id => id.toString() !== post._id.toString());
+    post.saves = post.saves.filter(id => id.toString() !== req.user._id.toString());
   } else {
-    user.savedPosts.push(postId);
+    user.savedPosts.push(post._id);
+    post.saves.push(req.user._id);
   }
 
   await user.save();
-  res.status(200).json({ message: isSaved ? "Unsaved" : "Saved" });
+  await post.save();
+
+  const updatedPost = await Post.findById(post._id).populate("user", "username profilePic");
+  res.status(200).json(updatedPost);
+});
+
+exports.getPostById = tryCatch(async (req, res) => {
+  const post = await Post.findById(req.params.id)
+    .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic");
+    
+  if (!post) return res.status(404).json({ message: "Post not found" });
+  res.status(200).json(post);
 });
 
 exports.addComment = tryCatch(async (req, res) => {
@@ -90,5 +131,40 @@ exports.addComment = tryCatch(async (req, res) => {
   });
 
   await post.save();
-  res.status(201).json({ message: "Comment added", comments: post.comments });
+  const updatedPost = await Post.findById(post._id)
+    .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic");
+  res.status(201).json(updatedPost);
+});
+
+exports.getUserPosts = tryCatch(async (req, res) => {
+  const { userId } = req.params;
+  const posts = await Post.find({ user: userId })
+    .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic")
+    .sort({ createdAt: -1 });
+  res.status(200).json(posts);
+});
+
+exports.addReply = tryCatch(async (req, res) => {
+  const { text, commentId } = req.body;
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ message: "Post not found" });
+
+  const comment = post.comments.id(commentId);
+  if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+  comment.replies.push({
+    user: req.user._id,
+    text
+  });
+
+  await post.save();
+  const updatedPost = await Post.findById(post._id)
+    .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic");
+  res.status(201).json(updatedPost);
 });

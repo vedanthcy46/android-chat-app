@@ -24,8 +24,22 @@ exports.register = tryCatch(async (req, res) => {
   
   await newUser.save();
 
+  // Return token immediately so Android can log the user in right after registering
+  const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
   logger.info(`New user registered: ${username}`);
-  res.status(201).json({ message: "User registered successfully" });
+  res.status(201).json({
+    message: "User registered successfully",
+    token,
+    user: {
+      id: newUser._id,
+      username: newUser.username,
+      email: newUser.email,
+      profilePic: newUser.profilePic
+    }
+  });
 });
 
 // Login

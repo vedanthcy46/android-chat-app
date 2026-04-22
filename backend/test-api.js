@@ -3,7 +3,7 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = 'https://android-chat-app-g9yu.onrender.com/api';
 const TEST_IMAGE_PATH = 'C:\\Users\\hp victus\\.gemini\\antigravity\\brain\\6594b77d-7724-4fb2-b3b9-2ae7e486fe13\\test_image_1776788364714.png';
 
 async function test() {

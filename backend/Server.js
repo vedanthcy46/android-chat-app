@@ -11,6 +11,8 @@ const chatRoutes = require("./routes/chat.route");
 const errorHandler = require("./middleware/error.middleware");
 const logger = require("./utils/logger");
 const Message = require("./models/message.model");
+const Conversation = require("./models/conversation.model");
+
 
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -62,6 +64,11 @@ io.on("connection", (socket) => {
     try {
       const message = new Message({ conversationId, senderId, text });
       await message.save();
+
+      // Update conversation with last message reference
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: message._id
+      });
 
       const receiverSocketId = userSocketMap[receiverId];
       if (receiverSocketId) {
