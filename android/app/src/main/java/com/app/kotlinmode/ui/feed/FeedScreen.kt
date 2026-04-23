@@ -6,10 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.app.kotlinmode.model.Post
+import com.app.kotlinmode.ui.components.CommentBottomSheet
 import com.app.kotlinmode.ui.components.PostCard
 import com.app.kotlinmode.ui.theme.*
 import com.app.kotlinmode.utils.Resource
@@ -32,6 +32,16 @@ fun FeedScreen(
     onUserClick: (String) -> Unit
 ) {
     val feedState by viewModel.state.collectAsState()
+    var selectedPostForComments by remember { mutableStateOf<Post?>(null) }
+    var showComments by remember { mutableStateOf(false) }
+
+    // Synchronize selectedPost with feedState when feed updates
+    LaunchedEffect(feedState) {
+        if (showComments && selectedPostForComments != null) {
+            val updatedList = (feedState as? Resource.Success)?.data ?: return@LaunchedEffect
+            selectedPostForComments = updatedList.find { it.id == selectedPostForComments!!.id }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -77,13 +87,25 @@ fun FeedScreen(
                                     currentUserId = currentUserId,
                                     onLike = { viewModel.likePost(post.id) },
                                     onSave = { viewModel.savePost(post.id) },
-                                    onComment = { },
+                                    onComment = { 
+                                        selectedPostForComments = post
+                                        showComments = true
+                                    },
                                     onProfileClick = { onUserClick(post.user.id) }
                                 )
                             }
                         }
                     }
                 }
+            }
+
+            if (showComments && selectedPostForComments != null) {
+                CommentBottomSheet(
+                    post = selectedPostForComments!!,
+                    onAddComment = { viewModel.addComment(selectedPostForComments!!.id, it) },
+                    onAddReply = { commentId, text -> viewModel.addReply(selectedPostForComments!!.id, commentId, text) },
+                    onDismiss = { showComments = false }
+                )
             }
         }
     }

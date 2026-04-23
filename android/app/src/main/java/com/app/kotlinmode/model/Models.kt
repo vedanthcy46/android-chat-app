@@ -43,8 +43,10 @@ data class User(
 data class UpdateUserRequest(
     val username: String? = null,
     val bio: String? = null,
-    val profilePicture: String? = null
+    @SerializedName("profilePic") val profilePicture: String? = null
 )
+
+data class FcmTokenRequest(val token: String)
 
 // ─────────────────────────────────────────
 //  POST
@@ -63,7 +65,15 @@ data class Post(
 
 data class Comment(
     @SerializedName("_id") val id: String,
-    @SerializedName("user") val user: User,             // backend uses 'user', not 'userId'
+    @SerializedName("user") val user: User,
+    val text: String,
+    val replies: List<Reply> = emptyList(),
+    val createdAt: String
+)
+
+data class Reply(
+    @SerializedName("_id") val id: String,
+    @SerializedName("user") val user: User,
     val text: String,
     val createdAt: String
 )
@@ -74,6 +84,7 @@ data class CreatePostRequest(
 )
 
 data class CommentRequest(val text: String)
+data class ReplyRequest(val text: String, val commentId: String)
 
 // ─────────────────────────────────────────
 //  CHAT

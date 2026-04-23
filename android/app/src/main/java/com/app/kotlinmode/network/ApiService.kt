@@ -45,6 +45,9 @@ interface ApiService {
     @PUT("users/update")
     suspend fun updateUser(@Body body: UpdateUserRequest): Response<User>
 
+    @PUT("users/fcm-token")
+    suspend fun updateFcmToken(@Body body: FcmTokenRequest): Response<Map<String, String>>
+
     @POST("users/follow/{id}")
     suspend fun followUser(@Path("id") targetId: String): Response<Map<String, String>>
 
@@ -58,17 +61,20 @@ interface ApiService {
     @GET("posts/feed")
     suspend fun getFeed(): Response<List<Post>>
 
+    @GET("posts/{id}")
+    suspend fun getPostById(@Path("id") id: String): Response<Post>
+
     @PUT("posts/like/{id}")
-    suspend fun likePost(@Path("id") postId: String): Response<Post>
+    suspend fun likePost(@Path("id") id: String): Response<Post>
 
     @PUT("posts/save/{id}")
     suspend fun savePost(@Path("id") postId: String): Response<Post>
 
     @POST("posts/comment/{id}")
-    suspend fun commentOnPost(
-        @Path("id") postId: String,
-        @Body body: CommentRequest
-    ): Response<Post>
+    suspend fun addComment(@Path("id") id: String, @Body body: CommentRequest): Response<Post>
+
+    @POST("posts/reply/{id}")
+    suspend fun addReply(@Path("id") id: String, @Body body: ReplyRequest): Response<Post>
 
     @Multipart
     @POST("posts/upload")

@@ -1,5 +1,7 @@
 package com.app.kotlinmode.ui.profile
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,14 +21,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.app.kotlinmode.model.Post
 import com.app.kotlinmode.model.User
+import com.app.kotlinmode.ui.components.EditProfileBottomSheet
 import com.app.kotlinmode.ui.theme.*
 import com.app.kotlinmode.utils.Resource
+import com.app.kotlinmode.viewmodel.ProfileEvent
 import com.app.kotlinmode.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,14 +41,34 @@ fun ProfileScreen(
     profileId: String,
     currentUserId: String,
     onLogout: () -> Unit,
-    onMessageClick: (receiverId: String) -> Unit,
+    onNavigateToChat: (conversationId: String, receiverId: String, receiverName: String) -> Unit,
     onFollowersClick: (List<String>) -> Unit,
-    onFollowingClick: (List<String>) -> Unit
+    onFollowingClick: (List<String>) -> Unit,
+    onPostClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val currentOnNavigateToChat by rememberUpdatedState(onNavigateToChat)
+    
     LaunchedEffect(profileId) { viewModel.loadProfile(profileId) }
+
+    // Listen for navigation and toast events
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is ProfileEvent.NavigateToChat -> {
+                    Log.d("ProfileScreen", "Navigating to chat: ${event.conversationId}")
+                    currentOnNavigateToChat(event.conversationId, event.receiverId, event.receiverName)
+                }
+                is ProfileEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val state by viewModel.state.collectAsState()
     val postsState by viewModel.posts.collectAsState()
+    var showEditProfile by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -51,7 +76,7 @@ fun ProfileScreen(
                 title = { Text("Profile", fontWeight = FontWeight.Bold, color = TextPrimary) },
                 actions = {
                     if (profileId == currentUserId) {
-                        IconButton(onClick = { viewModel.logout(onLogout) }) {
+                        IconButton(onClick = onLogout) {
                             Icon(Icons.Default.Logout, contentDescription = "Logout", tint = ErrorRed)
                         }
                     }
@@ -64,7 +89,7 @@ fun ProfileScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding).background(DarkBackground)) {
             when (val s = state) {
                 is Resource.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = BrandPrimary)
-                is Resource.Error   -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                is Resource.Error -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(s.message ?: "Error", color = ErrorRed)
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { viewModel.loadProfile(profileId) }) { Text("Retry") }
@@ -77,12 +102,25 @@ fun ProfileScreen(
                                 isOwnProfile = profileId == currentUserId,
                                 isFollowing = user.followers.contains(currentUserId),
                                 onFollowToggle = { viewModel.followUser(profileId) },
-                                onMessageClick = { onMessageClick(profileId) },
+                                onMessageClick = { 
+                                    Log.d("ProfileScreen", "Message clicked")
+                                    viewModel.startChat(profileId) 
+                                },
                                 onFollowersClick = { onFollowersClick(user.followers) },
-                                onFollowingClick = { onFollowingClick(user.following) }
+                                onFollowingClick = { onFollowingClick(user.following) },
+                                onEditProfileClick = { showEditProfile = true },
+                                isStartingChat = viewModel.isStartingChat.collectAsState().value
                             )
                             
-                            UserPostsGrid(postsState)
+                            UserPostsGrid(postsState, onPostClick)
+                        }
+
+                        if (showEditProfile) {
+                            EditProfileBottomSheet(
+                                user = user,
+                                onSave = { username, bio, pic -> viewModel.updateProfile(username, bio, pic) },
+                                onDismiss = { showEditProfile = false }
+                            )
                         }
                     }
                 }
@@ -99,7 +137,9 @@ private fun ProfileHeader(
     onFollowToggle: () -> Unit,
     onMessageClick: () -> Unit,
     onFollowersClick: () -> Unit,
-    onFollowingClick: () -> Unit
+    onFollowingClick: () -> Unit,
+    onEditProfileClick: () -> Unit,
+    isStartingChat: Boolean
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().animateContentSize().padding(bottom = 16.dp),
@@ -111,8 +151,7 @@ private fun ProfileHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
-                modifier = Modifier.size(86.dp).clip(CircleShape)
-                    .background(Brush.linearGradient(InstagramGradient)),
+                modifier = Modifier.size(85.dp).clip(CircleShape).background(Brush.linearGradient(InstagramGradient)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
@@ -146,8 +185,9 @@ private fun ProfileHeader(
             }
         }
         
+        Spacer(Modifier.height(20.dp))
+
         if (!isOwnProfile) {
-            Spacer(Modifier.height(20.dp))
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = onFollowToggle,
@@ -167,15 +207,19 @@ private fun ProfileHeader(
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = DarkSurface, contentColor = TextPrimary),
-                    contentPadding = PaddingValues(0.dp)
+                    contentPadding = PaddingValues(0.dp),
+                    enabled = !isStartingChat
                 ) {
-                    Text("Message", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    if (isStartingChat) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = BrandPrimary, strokeWidth = 2.dp)
+                    } else {
+                        Text("Message", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
                 }
             }
         } else {
-             Spacer(Modifier.height(16.dp))
              Button(
-                onClick = {}, // Edit Profile Placeholder
+                onClick = onEditProfileClick,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(36.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = DarkSurface, contentColor = TextPrimary),
@@ -188,7 +232,18 @@ private fun ProfileHeader(
 }
 
 @Composable
-private fun UserPostsGrid(state: Resource<List<Post>>) {
+private fun StatItem(label: String, count: Int, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(count.toString(), color = TextPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+        Text(label, color = TextMuted, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun UserPostsGrid(state: Resource<List<Post>>, onPostClick: (String) -> Unit) {
     when (state) {
         is Resource.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BrandPrimary) }
         is Resource.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(state.message ?: "Error", color = ErrorRed) }
@@ -210,23 +265,15 @@ private fun UserPostsGrid(state: Resource<List<Post>>) {
                         AsyncImage(
                             model = post.image,
                             contentDescription = "Post",
-                            modifier = Modifier.aspectRatio(1f).background(DarkSurface),
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .background(DarkSurface)
+                                .clickable { onPostClick(post.id) },
                             contentScale = ContentScale.Crop
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StatItem(label: String, count: Int, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Text(count.toString(), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Text(label, color = TextPrimary, fontSize = 13.sp)
     }
 }

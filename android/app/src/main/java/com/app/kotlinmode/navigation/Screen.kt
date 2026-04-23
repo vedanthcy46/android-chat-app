@@ -37,4 +37,8 @@ sealed class Screen(val route: String) {
     object UserList : Screen("user_list/{title}/{userIds}") {
         fun buildRoute(title: String, userIds: String) = "user_list/$title/$userIds"
     }
+
+    object PostDetail : Screen("post_detail/{postId}") {
+        fun buildRoute(postId: String) = "post_detail/$postId"
+    }
 }

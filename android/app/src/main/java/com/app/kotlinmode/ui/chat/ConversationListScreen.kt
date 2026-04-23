@@ -28,7 +28,7 @@ import com.app.kotlinmode.viewmodel.ChatViewModel
 fun ConversationListScreen(
     viewModel: ChatViewModel,
     currentUserId: String,
-    onConversationClick: (conversationId: String, otherUserId: String) -> Unit
+    onConversationClick: (conversationId: String, otherUserId: String, receiverName: String) -> Unit
 ) {
     LaunchedEffect(Unit) { viewModel.loadConversations(currentUserId) }
 
@@ -69,7 +69,7 @@ fun ConversationListScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            if (other != null) onConversationClick(convo.id, other.id)
+                                            if (other != null) onConversationClick(convo.id, other.id, other.username)
                                         }
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically

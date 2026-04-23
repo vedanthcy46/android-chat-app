@@ -15,9 +15,13 @@ class ChatViewModel(private val repo: ChatRepository) : ViewModel() {
     private val _conversations = MutableStateFlow<Resource<List<Conversation>>>(Resource.Loading())
     val conversations: StateFlow<Resource<List<Conversation>>> = _conversations.asStateFlow()
 
-    // Holds messages including real-time ones from Socket.IO
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+
+    private val _receiverName = MutableStateFlow<String?>(null)
+    val receiverName: StateFlow<String?> = _receiverName.asStateFlow()
+
+    fun setReceiverName(name: String) { _receiverName.value = name }
 
     fun loadConversations(userId: String) {
         repo.getConversations(userId).onEach { _conversations.value = it }.launchIn(viewModelScope)
@@ -30,20 +34,16 @@ class ChatViewModel(private val repo: ChatRepository) : ViewModel() {
     }
 
     fun sendMessage(conversationId: String, senderId: String, receiverId: String, text: String) {
-        // Optimistic UI: Add message to list immediately
         val temp = Message("temp_${System.currentTimeMillis()}", conversationId, senderId, text, "just now")
         _messages.value = _messages.value + temp
 
         viewModelScope.launch {
-            // Send via Socket only. The backend socket handler will save it to MongoDB.
             SocketManager.sendMessage(conversationId, senderId, receiverId, text)
         }
     }
 
     fun startListening(currentConversationId: String, currentUserId: String) {
         SocketManager.onNewMessage { conversationId, senderId, text ->
-            // Only add to list if it's for the current chat AND NOT sent by me
-            // (since I already added my own message optimistically in sendMessage)
             if (conversationId == currentConversationId && senderId != currentUserId) {
                 val msg = Message("socket_${System.currentTimeMillis()}", conversationId, senderId, text, "just now")
                 _messages.value = _messages.value + msg

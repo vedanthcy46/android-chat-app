@@ -38,6 +38,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val messages by viewModel.messages.collectAsState()
+    val receiverName by viewModel.receiverName.collectAsState()
 
     LaunchedEffect(conversationId) {
         viewModel.loadMessages(conversationId)
@@ -53,7 +54,13 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chat", fontWeight = FontWeight.Bold, color = TextPrimary) },
+                title = { 
+                    Text(
+                        text = receiverName ?: "Chat", 
+                        fontWeight = FontWeight.Bold, 
+                        color = TextPrimary 
+                    ) 
+                },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null, tint = TextPrimary) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurface)
             )
@@ -61,7 +68,12 @@ fun ChatScreen(
         containerColor = DarkBackground,
         bottomBar = {
             Row(
-                modifier = Modifier.fillMaxWidth().background(DarkSurface).padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DarkSurface)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(

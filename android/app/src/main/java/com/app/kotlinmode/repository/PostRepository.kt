@@ -15,7 +15,16 @@ class PostRepository(private val api: ApiService) {
         try {
             val res = api.getFeed()
             if (res.isSuccessful) emit(Resource.Success(res.body()!!))
-            else emit(Resource.Error(res.errorBody()?.string() ?: "Failed to load feed"))
+            else emit(Resource.Error("Failed to load feed"))
+        } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
+    }
+
+    fun getPostById(id: String): Flow<Resource<Post>> = flow {
+        emit(Resource.Loading())
+        try {
+            val res = api.getPostById(id)
+            if (res.isSuccessful) emit(Resource.Success(res.body()!!))
+            else emit(Resource.Error("Post not found"))
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
     }
 
@@ -46,12 +55,21 @@ class PostRepository(private val api: ApiService) {
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
     }
 
-    fun commentOnPost(postId: String, text: String): Flow<Resource<Post>> = flow {
+    fun addComment(id: String, text: String): Flow<Resource<Post>> = flow {
         emit(Resource.Loading())
         try {
-            val res = api.commentOnPost(postId, CommentRequest(text))
+            val res = api.addComment(id, CommentRequest(text))
             if (res.isSuccessful) emit(Resource.Success(res.body()!!))
-            else emit(Resource.Error("Comment failed"))
+            else emit(Resource.Error("Failed to comment"))
+        } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
+    }
+
+    fun addReply(postId: String, commentId: String, text: String): Flow<Resource<Post>> = flow {
+        emit(Resource.Loading())
+        try {
+            val res = api.addReply(postId, ReplyRequest(text, commentId))
+            if (res.isSuccessful) emit(Resource.Success(res.body()!!))
+            else emit(Resource.Error("Failed to reply"))
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
     }
 

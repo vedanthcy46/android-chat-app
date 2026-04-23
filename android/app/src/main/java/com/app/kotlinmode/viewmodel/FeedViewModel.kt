@@ -22,8 +22,10 @@ class FeedViewModel(private val repo: PostRepository) : ViewModel() {
 
     fun likePost(postId: String) = updatePostInList(postId) { repo.likePost(it) }
     fun savePost(postId: String) = updatePostInList(postId) { repo.savePost(it) }
+    
+    fun addComment(postId: String, text: String) = updatePostInList(postId) { repo.addComment(it, text) }
+    fun addReply(postId: String, commentId: String, text: String) = updatePostInList(postId) { repo.addReply(it, commentId, text) }
 
-    // Replaces the changed post in the existing list (avoids full refresh)
     private fun updatePostInList(postId: String, action: (String) -> Flow<Resource<Post>>) {
         action(postId).onEach { result ->
             if (result is Resource.Success) {

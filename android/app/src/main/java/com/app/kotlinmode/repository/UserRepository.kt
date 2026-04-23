@@ -43,4 +43,21 @@ class UserRepository(private val api: ApiService) {
             else emit(Resource.Error("Follow failed"))
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
     }
+
+    fun updateUser(req: UpdateUserRequest): Flow<Resource<User>> = flow {
+        emit(Resource.Loading())
+        try {
+            val res = api.updateUser(req)
+            if (res.isSuccessful) emit(Resource.Success(res.body()!!))
+            else emit(Resource.Error("Update failed"))
+        } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
+    }
+
+    fun updateFcmToken(token: String): Flow<Resource<Unit>> = flow {
+        try {
+            val res = api.updateFcmToken(FcmTokenRequest(token))
+            if (res.isSuccessful) emit(Resource.Success(Unit))
+            else emit(Resource.Error("Token sync failed"))
+        } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
+    }
 }
