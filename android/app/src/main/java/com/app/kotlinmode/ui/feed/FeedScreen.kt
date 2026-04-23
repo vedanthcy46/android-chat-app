@@ -85,7 +85,7 @@ fun FeedScreen(
                                 PostCard(
                                     post = post,
                                     currentUserId = currentUserId,
-                                    onLike = { viewModel.likePost(post.id) },
+                                    onLike = { viewModel.likePost(post.id, currentUserId) },
                                     onSave = { viewModel.savePost(post.id) },
                                     onComment = { 
                                         selectedPostForComments = post

@@ -1,12 +1,17 @@
 package com.app.kotlinmode
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -14,9 +19,22 @@ import com.app.kotlinmode.navigation.AppNavGraph
 import com.app.kotlinmode.ui.theme.KotlinModeAppTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("MainActivity", "Notification permission granted")
+        } else {
+            Log.w("MainActivity", "Notification permission denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        askNotificationPermission()
 
         setContent {
             val navController = rememberNavController()
@@ -28,6 +46,16 @@ class MainActivity : ComponentActivity() {
 
             KotlinModeAppTheme {
                 AppNavGraph(context = applicationContext, navController = navController)
+            }
+        }
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }

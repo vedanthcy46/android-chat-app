@@ -119,6 +119,21 @@ exports.likePost = tryCatch(async (req, res) => {
   }
 
   await post.save();
+  
+  // Send Like Notification
+  if (!isLiked && post.user.toString() !== req.user._id.toString()) {
+    const postOwner = await User.findById(post.user);
+    if (postOwner && postOwner.fcmToken) {
+      const { sendPushNotification } = require("../config/firebase");
+      sendPushNotification(
+        postOwner.fcmToken,
+        "New Like",
+        `${req.user.username} liked your post`,
+        { type: "post", postId: post._id.toString() }
+      );
+    }
+  }
+
   const updatedPost = await Post.findById(post._id).populate("user", "username profilePic");
   res.status(200).json(updatedPost);
 });
@@ -168,6 +183,20 @@ exports.addComment = tryCatch(async (req, res) => {
   });
 
   await post.save();
+
+  // Send Comment Notification
+  if (post.user.toString() !== req.user._id.toString()) {
+    const postOwner = await User.findById(post.user);
+    if (postOwner && postOwner.fcmToken) {
+      const { sendPushNotification } = require("../config/firebase");
+      sendPushNotification(
+        postOwner.fcmToken,
+        "New Comment",
+        `${req.user.username} commented: ${text}`,
+        { type: "post", postId: post._id.toString() }
+      );
+    }
+  }
   const updatedPost = await Post.findById(post._id)
     .populate("user", "username profilePic")
     .populate("comments.user", "username profilePic")

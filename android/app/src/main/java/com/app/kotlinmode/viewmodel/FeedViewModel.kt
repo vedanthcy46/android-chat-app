@@ -32,38 +32,89 @@ class FeedViewModel(private val repo: PostRepository) : ViewModel() {
             .launchIn(viewModelScope)
     }
 
-    fun likePost(postId: String) = updatePostInList(postId) { repo.likePost(it) }
-    fun savePost(postId: String) = updatePostInList(postId) { repo.savePost(it) }
-    
-    fun deletePost(postId: String) {
-        repo.deletePost(postId).onEach { result ->
+    fun likePost(postId: String, currentUserId: String) {
+        // Optimistic UI Update: Toggle locally first
+        if (_state.value is Resource.Success) {
+            val currentList = (_state.value as Resource.Success).data ?: emptyList()
+            val newList = currentList.map { post ->
+                if (post.id == postId) {
+                    val newLikes = if (post.likes.contains(currentUserId)) {
+                        post.likes.filter { it != currentUserId }
+                    } else {
+                        post.likes + currentUserId
+                    }
+                    post.copy(likes = newLikes)
+                } else post
+            }
+            _state.value = Resource.Success(newList)
+            // Also update reels if visible
+            if (_reels.value is Resource.Success) {
+                val reelsList = (_reels.value as Resource.Success).data ?: emptyList()
+                _reels.value = Resource.Success(reelsList.map { if (it.id == postId) newList.find { p -> p.id == postId }!! else it })
+            }
+        }
+
+        // Call repository in background
+        repo.likePost(postId).onEach { result ->
             if (result is Resource.Success) {
-                // Remove from feed
-                if (_state.value is Resource.Success) {
-                    val currentList = (_state.value as Resource.Success).data ?: emptyList()
-                    _state.value = Resource.Success(currentList.filter { it.id != postId })
-                }
-                // Remove from reels
-                if (_reels.value is Resource.Success) {
-                    val currentList = (_reels.value as Resource.Success).data ?: emptyList()
-                    _reels.value = Resource.Success(currentList.filter { it.id != postId })
-                }
+                updatePostInState(result.data!!)
+            } else if (result is Resource.Error) {
+                // On error, we should ideally refresh to revert, but updatePostInState usually handles it
+                loadFeed() 
             }
         }.launchIn(viewModelScope)
     }
 
-    fun addComment(postId: String, text: String) = updatePostInList(postId) { repo.addComment(it, text) }
-    fun addReply(postId: String, commentId: String, text: String) = updatePostInList(postId) { repo.addReply(it, commentId, text) }
-
-    private fun updatePostInList(postId: String, action: (String) -> Flow<Resource<Post>>) {
-        action(postId).onEach { result ->
+    fun savePost(postId: String) {
+        performOptimisticUpdate(postId) { repo.savePost(it) }
+    }
+    
+    fun deletePost(postId: String) {
+        repo.deletePost(postId).onEach { result ->
             if (result is Resource.Success) {
-                val updated = result.data!!
-                val currentList = (_state.value as? Resource.Success)?.data ?: return@onEach
-                _state.value = Resource.Success(
-                    currentList.map { if (it.id == updated.id) updated else it }
-                )
+                removePostFromState(postId)
             }
         }.launchIn(viewModelScope)
+    }
+
+    fun addComment(postId: String, text: String) {
+        performOptimisticUpdate(postId) { repo.addComment(it, text) }
+    }
+
+    fun addReply(postId: String, commentId: String, text: String) {
+        performOptimisticUpdate(postId) { repo.addReply(it, commentId, text) }
+    }
+
+    private fun performOptimisticUpdate(postId: String, action: (String) -> Flow<Resource<Post>>) {
+        action(postId).onEach { result ->
+            if (result is Resource.Success) {
+                val updatedPost = result.data!!
+                updatePostInState(updatedPost)
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun updatePostInState(updatedPost: Post) {
+        // Update Feed
+        if (_state.value is Resource.Success) {
+            val currentList = (_state.value as Resource.Success).data ?: emptyList()
+            _state.value = Resource.Success(currentList.map { if (it.id == updatedPost.id) updatedPost else it })
+        }
+        // Update Reels
+        if (_reels.value is Resource.Success) {
+            val currentList = (_reels.value as Resource.Success).data ?: emptyList()
+            _reels.value = Resource.Success(currentList.map { if (it.id == updatedPost.id) updatedPost else it })
+        }
+    }
+
+    private fun removePostFromState(postId: String) {
+        if (_state.value is Resource.Success) {
+            val currentList = (_state.value as Resource.Success).data ?: emptyList()
+            _state.value = Resource.Success(currentList.filter { it.id != postId })
+        }
+        if (_reels.value is Resource.Success) {
+            val currentList = (_reels.value as Resource.Success).data ?: emptyList()
+            _reels.value = Resource.Success(currentList.filter { it.id != postId })
+        }
     }
 }

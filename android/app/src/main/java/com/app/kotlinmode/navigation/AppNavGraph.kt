@@ -25,6 +25,7 @@ import com.app.kotlinmode.ui.search.*
 import com.app.kotlinmode.ui.reels.*
 import com.app.kotlinmode.ui.theme.DarkBackground
 import com.app.kotlinmode.viewmodel.*
+import com.app.kotlinmode.utils.Resource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -74,7 +75,16 @@ fun AppNavGraph(
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val token = task.result
-                    userRepo.updateFcmToken(token).launchIn(scope = this)
+                    Log.d("FCM", "Fetched Token: $token")
+                    userRepo.updateFcmToken(token).onEach { result ->
+                        when (result) {
+                            is Resource.Success -> Log.d("FCM", "Token synced successfully")
+                            is Resource.Error -> Log.e("FCM", "Token sync error: ${result.message}")
+                            else -> {}
+                        }
+                    }.launchIn(scope = this)
+                } else {
+                    Log.e("FCM", "Token fetch failed", task.exception)
                 }
             }
         }

@@ -97,8 +97,13 @@ exports.followUnfollowUser = tryCatch(async (req, res) => {
 
 exports.updateFcmToken = tryCatch(async (req, res) => {
   const { token } = req.body;
-  if (!token) return res.status(400).json({ message: "Token is required" });
+  logger.info(`FCM Token Update Request for user: ${req.user._id}`);
+  if (!token) {
+    logger.warn("FCM Token update failed: No token provided");
+    return res.status(400).json({ message: "Token is required" });
+  }
 
   await User.findByIdAndUpdate(req.user._id, { fcmToken: token });
+  logger.info(`FCM Token updated successfully for user: ${req.user._id}`);
   res.status(200).json({ message: "FCM Token updated successfully" });
 });

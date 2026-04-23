@@ -155,7 +155,7 @@ fun ReelsPager(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val isLiked = post.likes.contains(currentUserId)
-                    IconButton(onClick = { viewModel.likePost(post.id) }) {
+                    IconButton(onClick = { viewModel.likePost(post.id, currentUserId) }) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
