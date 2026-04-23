@@ -91,7 +91,8 @@ fun FeedScreen(
                                         selectedPostForComments = post
                                         showComments = true
                                     },
-                                    onProfileClick = { onUserClick(post.user.id) }
+                                    onProfileClick = { onUserClick(post.user.id) },
+                                    onDelete = { viewModel.deletePost(post.id) }
                                 )
                             }
                         }

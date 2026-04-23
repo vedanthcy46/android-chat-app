@@ -19,6 +19,7 @@ sealed class Screen(val route: String) {
 
     // ── Main tabs ─────────────────────────────────────
     object Feed     : Screen("feed")
+    object Reels    : Screen("reels")
     object Search   : Screen("search")
     object ChatList   : Screen("chat_list")
     object Profile    : Screen("profile")

@@ -8,11 +8,13 @@ router.post("/upload", protectRoute, upload.single("image"), postController.uplo
 router.post("/create", protectRoute, postController.createPost);
 router.get("/all", protectRoute, postController.getAllPosts);
 router.get("/feed", protectRoute, postController.getFeed);
+router.get("/reels", protectRoute, postController.getReels);
 router.get("/:id", protectRoute, postController.getPostById);
 router.put("/like/:id", protectRoute, postController.likePost);
 router.put("/save/:id", protectRoute, postController.savePost);
 router.post("/comment/:id", protectRoute, postController.addComment);
 router.post("/reply/:id", protectRoute, postController.addReply);
 router.get("/user/:userId", protectRoute, postController.getUserPosts);
+router.delete("/:id", protectRoute, postController.deletePost);
 
 module.exports = router;

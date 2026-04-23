@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.app.kotlinmode.model.Post
+import com.app.kotlinmode.ui.components.VideoPlayer
 import com.app.kotlinmode.ui.theme.*
 
 @Composable
@@ -35,7 +37,8 @@ fun PostCard(
     onLike: () -> Unit,
     onSave: () -> Unit,
     onComment: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     val isLiked = post.likes.contains(currentUserId)
     val isSaved = post.saves.contains(currentUserId)
@@ -96,10 +99,31 @@ fun PostCard(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp
             )
+            
+            if (post.user.id == currentUserId && onDelete != null) {
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                        contentDescription = "Delete Post",
+                        tint = ErrorRed,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
 
-        // Image with subtle fade-in
-        if (!post.image.isNullOrBlank()) {
+        // Media Section (Image or Video)
+        if (post.postType == "video" && !post.videoUrl.isNullOrBlank()) {
+            VideoPlayer(
+                videoUrl = post.videoUrl,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(DarkSurface),
+                playWhenReady = false // Only auto-play in Reels tab to save data/battery
+            )
+        } else if (!post.image.isNullOrBlank()) {
             AsyncImage(
                 model = post.image,
                 contentDescription = "Post image",

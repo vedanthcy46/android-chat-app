@@ -12,7 +12,13 @@ class FeedViewModel(private val repo: PostRepository) : ViewModel() {
     private val _state = MutableStateFlow<Resource<List<Post>>>(Resource.Loading())
     val state: StateFlow<Resource<List<Post>>> = _state.asStateFlow()
 
-    init { loadFeed() }
+    private val _reels = MutableStateFlow<Resource<List<Post>>>(Resource.Loading())
+    val reels: StateFlow<Resource<List<Post>>> = _reels.asStateFlow()
+
+    init { 
+        loadFeed() 
+        loadReels()
+    }
 
     fun loadFeed() {
         repo.getFeed()
@@ -20,9 +26,32 @@ class FeedViewModel(private val repo: PostRepository) : ViewModel() {
             .launchIn(viewModelScope)
     }
 
+    fun loadReels() {
+        repo.getReels()
+            .onEach { _reels.value = it }
+            .launchIn(viewModelScope)
+    }
+
     fun likePost(postId: String) = updatePostInList(postId) { repo.likePost(it) }
     fun savePost(postId: String) = updatePostInList(postId) { repo.savePost(it) }
     
+    fun deletePost(postId: String) {
+        repo.deletePost(postId).onEach { result ->
+            if (result is Resource.Success) {
+                // Remove from feed
+                if (_state.value is Resource.Success) {
+                    val currentList = (_state.value as Resource.Success).data ?: emptyList()
+                    _state.value = Resource.Success(currentList.filter { it.id != postId })
+                }
+                // Remove from reels
+                if (_reels.value is Resource.Success) {
+                    val currentList = (_reels.value as Resource.Success).data ?: emptyList()
+                    _reels.value = Resource.Success(currentList.filter { it.id != postId })
+                }
+            }
+        }.launchIn(viewModelScope)
+    }
+
     fun addComment(postId: String, text: String) = updatePostInList(postId) { repo.addComment(it, text) }
     fun addReply(postId: String, commentId: String, text: String) = updatePostInList(postId) { repo.addReply(it, commentId, text) }
 

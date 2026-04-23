@@ -6,45 +6,82 @@ const tryCatch = require("../utils/tryCatch");
 exports.uploadImage = tryCatch(async (req, res) => {
   if (!req.file) {
     logger.error("Upload Error: No file in request");
-    return res.status(400).json({ message: "No image file provided" });
+    return res.status(400).json({ message: "No media file provided" });
   }
   
-  // Cloudinary storage provides 'path', 'url', or 'secure_url'
   const imageUrl = req.file.path || req.file.url || req.file.secure_url;
   
   if (!imageUrl) {
-    logger.error(`Upload Error: File uploaded but no URL found in: ${JSON.stringify(req.file)}`);
-    return res.status(500).json({ message: "Image uploaded but URL not found" });
+    logger.error(`Upload Error: File uploaded but no URL found`);
+    return res.status(500).json({ message: "Upload failed to return URL" });
   }
 
-  logger.info(`Image uploaded successfully: ${imageUrl}`);
-  res.status(200).json({ url: imageUrl });
+  // Detect type
+  const postType = (req.file.mimetype.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname)) ? "video" : "image";
+
+  logger.info(`${postType} uploaded successfully: ${imageUrl}`);
+  res.status(200).json({ url: imageUrl, postType: postType });
 });
 
 exports.createPost = tryCatch(async (req, res) => {
-  const { caption, image } = req.body;
+  const { caption, image, videoUrl: bodyVideoUrl, postType: bodyPostType } = req.body;
   
-  const imageUrl = req.file ? (req.file.path || req.file.url || req.file.secure_url) : image;
+  let imageUrl = req.file ? (req.file.path || req.file.url || req.file.secure_url) : image;
+  let videoUrl = bodyVideoUrl || "";
+  let postType = bodyPostType || "image";
 
-  if (!imageUrl) {
-    return res.status(400).json({ message: "Image is required" });
+  // Detailed Debugging log for incoming file
+  if (req.file) {
+    logger.info(`Create Post - File Received: ${req.file.originalname}, Mimetype: ${req.file.mimetype}, Size: ${req.file.size}`);
+    logger.debug(`Full File Object: ${JSON.stringify(req.file)}`);
+  }
+
+  // Robust video detection: Check mimetype OR file extension OR the URL itself (for 2-step process)
+  const isVideoFile = (req.file && (
+    req.file.mimetype.startsWith("video/") || 
+    /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname)
+  )) || (imageUrl && (/\.(mp4|mov|avi|mkv|webm)(\?.*)?$/i.test(imageUrl) || imageUrl.includes("/video/upload/")));
+
+  if (isVideoFile) {
+    postType = "video";
+    videoUrl = imageUrl; 
+    logger.info(`Video confirmed. URL set to: ${videoUrl}`);
+  }
+
+  if (!imageUrl && !videoUrl) {
+    logger.error("Create Post Error: No media provided");
+    return res.status(400).json({ message: "Media (image or video) is required" });
   }
 
   const newPost = new Post({
     user: req.user._id,
-    image: imageUrl,
+    image: imageUrl || videoUrl, // Use video URL as thumbnail placeholder if image is missing
+    videoUrl: videoUrl,
+    postType: postType,
     caption: caption || ""
   });
 
   try {
     await newPost.save();
     const populatedPost = await Post.findById(newPost._id).populate("user", "username profilePic");
-    logger.info(`New post created by user: ${req.user.username}`);
+    logger.info(`Successfully created ${postType} post. ID: ${newPost._id}`);
     res.status(201).json(populatedPost);
   } catch (err) {
     logger.error(`Post Save Error: ${err.message}`);
     res.status(500).json({ message: "Failed to save post", error: err.message });
   }
+});
+
+exports.getReels = tryCatch(async (req, res) => {
+  logger.info("Fetching Reels (video-only posts)");
+  const reels = await Post.find({ postType: "video" })
+    .populate("user", "username profilePic")
+    .populate("comments.user", "username profilePic")
+    .populate("comments.replies.user", "username profilePic")
+    .sort({ createdAt: -1 });
+  
+  logger.info(`Found ${reels.length} reels`);
+  res.status(200).json(reels);
 });
 
 exports.getAllPosts = tryCatch(async (req, res) => {
@@ -167,4 +204,18 @@ exports.addReply = tryCatch(async (req, res) => {
     .populate("comments.user", "username profilePic")
     .populate("comments.replies.user", "username profilePic");
   res.status(201).json(updatedPost);
+});
+
+exports.deletePost = tryCatch(async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ message: "Post not found" });
+
+  // Check ownership
+  if (post.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "You can only delete your own posts" });
+  }
+
+  await Post.findByIdAndDelete(req.params.id);
+  logger.info(`Post deleted: ${req.params.id} by user: ${req.user._id}`);
+  res.status(200).json({ message: "Post deleted successfully" });
 });

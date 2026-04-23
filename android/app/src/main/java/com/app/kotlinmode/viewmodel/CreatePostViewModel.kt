@@ -18,20 +18,19 @@ class CreatePostViewModel(private val repo: PostRepository) : ViewModel() {
 
     fun uploadAndCreatePost(imagePart: MultipartBody.Part, caption: String) {
         repo.uploadImage(imagePart).onEach { result ->
-            _uploadState.value = result
+            _uploadState.value = result.map { it.url } // Map to Resource<String> for UI if needed
             if (result is Resource.Success) {
-                val imageUrl = result.data
-                if (!imageUrl.isNullOrBlank()) {
-                    createPost(caption, imageUrl)
-                } else {
-                    _createState.value = Resource.Error("Upload succeeded but returned no URL")
-                }
+                val uploadData = result.data!!
+                createPost(caption, uploadData.url, uploadData.postType)
             }
         }.launchIn(viewModelScope)
     }
 
-    private fun createPost(caption: String, imageUrl: String) {
-        repo.createPost(caption, imageUrl).onEach {
+    private fun createPost(caption: String, url: String, type: String) {
+        val image = if (type == "image") url else null
+        val videoUrl = if (type == "video") url else null
+        
+        repo.createPost(caption, image, videoUrl, type).onEach {
             _createState.value = it
         }.launchIn(viewModelScope)
     }

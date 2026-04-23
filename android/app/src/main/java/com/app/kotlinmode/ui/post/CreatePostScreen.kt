@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.app.kotlinmode.ui.components.VideoPlayer
 import com.app.kotlinmode.ui.theme.*
 import com.app.kotlinmode.utils.Resource
 import com.app.kotlinmode.utils.UriUtils
@@ -39,7 +40,8 @@ fun CreatePostScreen(
 ) {
     val context = LocalContext.current
     var caption by remember { mutableStateOf("") }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
+    val isVideo = selectedMediaUri?.let { context.contentResolver.getType(it)?.startsWith("video/") } == true
     
     val uploadState by viewModel.uploadState.collectAsState()
     val createState by viewModel.createState.collectAsState()
@@ -47,7 +49,7 @@ fun CreatePostScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedImageUri = uri
+        selectedMediaUri = uri
     }
 
     LaunchedEffect(createState) {
@@ -65,15 +67,15 @@ fun CreatePostScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            selectedImageUri?.let { uri ->
+                            selectedMediaUri?.let { uri ->
                                 UriUtils.uriToMultipart(context, uri, "image")?.let { part ->
                                     viewModel.uploadAndCreatePost(part, caption)
                                 }
                             }
                         },
-                        enabled = selectedImageUri != null && uploadState !is Resource.Loading && createState !is Resource.Loading
+                        enabled = selectedMediaUri != null && uploadState !is Resource.Loading && createState !is Resource.Loading
                     ) {
-                        Text("Post", color = if (selectedImageUri != null) BrandPrimary else TextMuted, fontWeight = FontWeight.Bold)
+                        Text("Post", color = if (selectedMediaUri != null) BrandPrimary else TextMuted, fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -93,21 +95,29 @@ fun CreatePostScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(350.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(DarkCard)
-                    .padding(if (selectedImageUri == null) 40.dp else 0.dp),
+                    .padding(if (selectedMediaUri == null) 40.dp else 0.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (selectedImageUri != null) {
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = "Selected image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                if (selectedMediaUri != null) {
+                    if (isVideo) {
+                        VideoPlayer(
+                            videoUrl = selectedMediaUri.toString(),
+                            modifier = Modifier.fillMaxSize(),
+                            playWhenReady = true
+                        )
+                    } else {
+                        AsyncImage(
+                            model = selectedMediaUri,
+                            contentDescription = "Selected image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                     IconButton(
-                        onClick = { selectedImageUri = null },
+                        onClick = { selectedMediaUri = null },
                         modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(0.5f), CircleShape)
                     ) {
                         Icon(Icons.Default.Close, null, tint = Color.White)
@@ -117,10 +127,10 @@ fun CreatePostScreen(
                         Icon(Icons.Default.AddPhotoAlternate, null, tint = TextMuted, modifier = Modifier.size(64.dp))
                         Spacer(Modifier.height(12.dp))
                         Button(
-                            onClick = { galleryLauncher.launch("image/*") },
+                            onClick = { galleryLauncher.launch("*/*") }, // Launch both image and video
                             colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
                         ) {
-                            Text("Select from Gallery")
+                            Text("Select Media")
                         }
                     }
                 }
@@ -150,7 +160,7 @@ fun CreatePostScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = BrandPrimary)
                         Spacer(Modifier.width(12.dp))
-                        Text("Uploading image...", color = TextSecondary)
+                        Text("Uploading media...", color = TextSecondary)
                     }
                 }
                 createState is Resource.Loading -> {

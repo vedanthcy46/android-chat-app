@@ -15,6 +15,7 @@ sealed class BottomNavItem(
     val unselectedIcon: ImageVector
 ) {
     object Feed : BottomNavItem("feed", "Home", Icons.Filled.Home, Icons.Outlined.Home)
+    object Reels : BottomNavItem("reels", "Reels", Icons.Filled.Movie, Icons.Outlined.Movie)
     object Search : BottomNavItem("search", "Search", Icons.Filled.Search, Icons.Outlined.Search)
     object Create : BottomNavItem("create_post", "Create", Icons.Filled.AddCircle, Icons.Outlined.AddCircle)
     object Chat : BottomNavItem("chat_list", "Chat", Icons.Filled.Chat, Icons.Outlined.Chat)
@@ -28,6 +29,7 @@ fun BottomNavBar(
 ) {
     val items = listOf(
         BottomNavItem.Feed,
+        BottomNavItem.Reels,
         BottomNavItem.Search,
         BottomNavItem.Create,
         BottomNavItem.Chat,

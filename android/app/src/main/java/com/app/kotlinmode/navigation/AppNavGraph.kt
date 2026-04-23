@@ -22,6 +22,7 @@ import com.app.kotlinmode.ui.feed.*
 import com.app.kotlinmode.ui.profile.*
 import com.app.kotlinmode.ui.post.*
 import com.app.kotlinmode.ui.search.*
+import com.app.kotlinmode.ui.reels.*
 import com.app.kotlinmode.ui.theme.DarkBackground
 import com.app.kotlinmode.viewmodel.*
 import kotlinx.coroutines.flow.first
@@ -83,7 +84,7 @@ fun AppNavGraph(
     val currentRoute = navBackStack?.destination?.route
 
     val bottomNavRoutes = setOf(
-        Screen.Feed.route, Screen.Search.route,
+        Screen.Feed.route, Screen.Reels.route, Screen.Search.route,
         Screen.CreatePost.route, Screen.ChatList.route, Screen.Profile.route
     )
     val showBottomBar = currentRoute in bottomNavRoutes
@@ -143,6 +144,13 @@ fun AppNavGraph(
                     onUserClick = { userId ->
                         navController.navigate(Screen.UserProfile.buildRoute(userId))
                     }
+                )
+            }
+
+            composable(Screen.Reels.route) {
+                ReelsScreen(
+                    viewModel = feedViewModel,
+                    currentUserId = currentUserId ?: ""
                 )
             }
 

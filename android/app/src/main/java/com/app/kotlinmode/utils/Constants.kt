@@ -9,8 +9,8 @@ object Constants {
     // ✅ Local network (real device on same WiFi as PC)
     // ⚠️  BASE_URL trailing slash is REQUIRED by Retrofit
     // ⚠️  SOCKET_URL must be root — no /api/ suffix
-    const val BASE_URL    = "https://android-chat-app-g9yu.onrender.com/api/"
-    const val SOCKET_URL  = "https://android-chat-app-g9yu.onrender.com"
+    const val BASE_URL    = "http://192.168.31.223:3000/api/"
+    const val SOCKET_URL  = "http://192.168.31.223:3000/"
     const val PREFS_NAME  = "user_prefs"
     const val TOKEN_KEY   = "jwt_token"
     const val USER_ID_KEY = "user_id"

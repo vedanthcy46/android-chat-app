@@ -57,6 +57,8 @@ data class Post(
     @SerializedName("user") val user: User,             // backend uses 'user', not 'userId'
     @SerializedName("caption") val description: String? = null, // backend uses 'caption', not 'description'
     val image: String? = null,
+    val videoUrl: String? = null,
+    val postType: String? = "image",
     val likes: List<String> = emptyList(),
     val saves: List<String> = emptyList(),
     val comments: List<Comment> = emptyList(),
@@ -80,11 +82,18 @@ data class Reply(
 
 data class CreatePostRequest(
     @SerializedName("caption") val description: String,
-    val image: String? = null
+    val image: String? = null,
+    val videoUrl: String? = null,
+    val postType: String? = "image"
 )
 
 data class CommentRequest(val text: String)
 data class ReplyRequest(val text: String, val commentId: String)
+
+data class UploadResponse(
+    val url: String,
+    val postType: String
+)
 
 // ─────────────────────────────────────────
 //  CHAT

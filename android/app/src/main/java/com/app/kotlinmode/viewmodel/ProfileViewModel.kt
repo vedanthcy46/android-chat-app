@@ -111,6 +111,21 @@ class ProfileViewModel(
         }
     }
 
+    fun deletePost(postId: String) {
+        viewModelScope.launch {
+            postRepo.deletePost(postId).collect { result ->
+                if (result is Resource.Success) {
+                    // Update local posts list
+                    val currentPosts = (posts.value as? Resource.Success)?.data ?: emptyList()
+                    _posts.value = Resource.Success(currentPosts.filter { it.id != postId })
+                    _events.emit(ProfileEvent.ShowToast("Post deleted successfully"))
+                } else if (result is Resource.Error) {
+                    _events.emit(ProfileEvent.ShowToast(result.message ?: "Failed to delete post"))
+                }
+            }
+        }
+    }
+
     fun logout(onDone: () -> Unit) {
         viewModelScope.launch {
             authRepo.logout()

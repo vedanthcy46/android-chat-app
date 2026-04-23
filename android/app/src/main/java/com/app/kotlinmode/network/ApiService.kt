@@ -5,7 +5,6 @@ import retrofit2.Response
 import retrofit2.http.*
 import okhttp3.MultipartBody
 
-
 /**
  * ApiService defines every backend endpoint as a Kotlin suspend function.
  *
@@ -78,7 +77,7 @@ interface ApiService {
 
     @Multipart
     @POST("posts/upload")
-    suspend fun uploadImage(@Part image: MultipartBody.Part): Response<Map<String, String>>
+    suspend fun uploadImage(@Part image: MultipartBody.Part): Response<UploadResponse>
 
     @GET("posts/user/{userId}")
     suspend fun getUserPosts(@Path("userId") userId: String): Response<List<Post>>
@@ -93,9 +92,14 @@ interface ApiService {
     @GET("chat/conversation/{userId}")
     suspend fun getConversations(@Path("userId") userId: String): Response<List<Conversation>>
 
+    @GET("posts/reels")
+    suspend fun getReels(): Response<List<Post>>
+
     @POST("chat/message")
     suspend fun sendMessage(@Body body: SendMessageRequest): Response<Message>
 
     @GET("chat/message/{conversationId}")
     suspend fun getMessages(@Path("conversationId") convId: String): Response<List<Message>>
+    @DELETE("posts/{id}")
+    suspend fun deletePost(@Path("id") id: String): Response<Map<String, String>>
 }

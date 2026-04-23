@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -112,7 +114,12 @@ fun ProfileScreen(
                                 isStartingChat = viewModel.isStartingChat.collectAsState().value
                             )
                             
-                            UserPostsGrid(postsState, onPostClick)
+                            UserPostsGrid(
+                                postsState = postsState, 
+                                isOwnProfile = profileId == currentUserId,
+                                onPostClick = onPostClick,
+                                onDeletePost = { viewModel.deletePost(it) }
+                             )
                         }
 
                         if (showEditProfile) {
@@ -243,12 +250,17 @@ private fun StatItem(label: String, count: Int, onClick: () -> Unit) {
 }
 
 @Composable
-private fun UserPostsGrid(state: Resource<List<Post>>, onPostClick: (String) -> Unit) {
-    when (state) {
+private fun UserPostsGrid(
+    postsState: Resource<List<Post>>, 
+    isOwnProfile: Boolean,
+    onPostClick: (String) -> Unit,
+    onDeletePost: (String) -> Unit
+) {
+    when (postsState) {
         is Resource.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = BrandPrimary) }
-        is Resource.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(state.message ?: "Error", color = ErrorRed) }
+        is Resource.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(postsState.message ?: "Error", color = ErrorRed) }
         is Resource.Success -> {
-            val posts = state.data ?: emptyList()
+            val posts = postsState.data ?: emptyList()
             if (posts.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                     Text("No posts yet", color = TextMuted, fontSize = 15.sp)
@@ -262,15 +274,51 @@ private fun UserPostsGrid(state: Resource<List<Post>>, onPostClick: (String) -> 
                     verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     items(posts) { post ->
-                        AsyncImage(
-                            model = post.image,
-                            contentDescription = "Post",
+                        Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .background(DarkSurface)
-                                .clickable { onPostClick(post.id) },
-                            contentScale = ContentScale.Crop
-                        )
+                                .clickable { onPostClick(post.id) }
+                        ) {
+                            // Thumbnail (Post image or video placeholder)
+                            AsyncImage(
+                                model = if (post.postType == "video") post.videoUrl else post.image,
+                                contentDescription = "Post",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            // Video Indicator (Play Icon)
+                            if (post.postType == "video") {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                                    contentDescription = "Video",
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                )
+                            }
+
+                            // Delete Button (Owner Only)
+                            if (isOwnProfile) {
+                                IconButton(
+                                    onClick = { onDeletePost(post.id) },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .size(32.dp)
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = ErrorRed,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
