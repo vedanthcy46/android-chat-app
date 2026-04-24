@@ -9,7 +9,9 @@ const userSchema = new mongoose.Schema({
   fcmToken: { type: String, default: "" },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }]
+  savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
+  isOnline: { type: Boolean, default: false },
+  lastSeen: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

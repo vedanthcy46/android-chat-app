@@ -43,8 +43,21 @@ object SocketManager {
     }
 
     /**
+     * Emits a "joinChat" event so the server knows which conversation
+     * the user is currently viewing (to mark messages as read immediately).
+     */
+    fun joinChat(conversationId: String) {
+        val payload = JSONObject().apply { put("conversationId", conversationId) }
+        socket?.emit("joinChat", payload)
+    }
+
+    /** Clears the active chat status on the server. */
+    fun leaveChat() {
+        socket?.emit("leaveChat")
+    }
+
+    /**
      * Emits a "sendMessage" event to the Socket.IO server.
-     * The server will forward it to the receiver in real-time.
      */
     fun sendMessage(conversationId: String, senderId: String, receiverId: String, text: String) {
         val payload = JSONObject().apply {
@@ -56,24 +69,37 @@ object SocketManager {
         socket?.emit("sendMessage", payload)
     }
 
-    /**
-     * Registers a listener for incoming "newMessage" events.
-     * [callback] is invoked on the Socket.IO background thread — update
-     * your StateFlow inside the callback and Compose will recompose safely.
-     */
-    fun onNewMessage(callback: (conversationId: String, senderId: String, text: String) -> Unit) {
+    /** Registers a listener for incoming "newMessage" events. */
+    fun onNewMessage(callback: (JSONObject) -> Unit) {
         socket?.on("newMessage") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
-            val conversationId = data.optString("conversationId")
-            val senderId       = data.optString("senderId")
-            val text           = data.optString("text")
-            callback(conversationId, senderId, text)
+            callback(data)
         }
     }
 
-    /** Removes the "newMessage" listener. Call when leaving the chat screen. */
-    fun offNewMessage() {
+    /** Registers a listener for user online/offline status changes. */
+    fun onUserStatusChanged(callback: (userId: String, isOnline: Boolean, lastSeen: String?) -> Unit) {
+        socket?.on("userStatusChanged") { args ->
+            val data = args.getOrNull(0) as? JSONObject ?: return@on
+            val userId = data.optString("userId")
+            val isOnline = data.optBoolean("isOnline")
+            val lastSeen = data.optString("lastSeen")
+            callback(userId, isOnline, lastSeen)
+        }
+    }
+
+    /** Registers a listener for message delivery confirmation. */
+    fun onMessageSent(callback: (JSONObject) -> Unit) {
+        socket?.on("messageSent") { args ->
+            val data = args.getOrNull(0) as? JSONObject ?: return@on
+            callback(data)
+        }
+    }
+
+    fun offChatEvents() {
         socket?.off("newMessage")
+        socket?.off("userStatusChanged")
+        socket?.off("messageSent")
     }
 
     fun isConnected(): Boolean = socket?.connected() == true

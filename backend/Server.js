@@ -59,16 +59,46 @@ app.use("/api/chat", chatRoutes);
 
 // Socket.IO for Real-time Chat
 const userSocketMap = {}; // {userId: socketId}
+const activeChatMap = {}; // {socketId: conversationId} - tracks which chat a user is currently viewing
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   const userId = socket.handshake.query.userId;
-  if (userId) userSocketMap[userId] = socket.id;
+  if (userId) {
+    userSocketMap[userId] = socket.id;
+    
+    // Update user status to online
+    try {
+      const User = require("./models/user.model");
+      await User.findByIdAndUpdate(userId, { isOnline: true });
+      io.emit("userStatusChanged", { userId, isOnline: true });
+    } catch (err) {
+      logger.error(`Error updating online status: ${err.message}`);
+    }
+  }
 
   logger.info(`User connected: ${userId} (Socket: ${socket.id})`);
 
+  // Track which chat the user is currently looking at
+  socket.on("joinChat", ({ conversationId }) => {
+    activeChatMap[socket.id] = conversationId;
+    logger.debug(`User ${userId} joined chat ${conversationId}`);
+  });
+
+  socket.on("leaveChat", () => {
+    delete activeChatMap[socket.id];
+  });
+
   socket.on("sendMessage", async ({ conversationId, senderId, receiverId, text }) => {
     try {
-      const message = new Message({ conversationId, senderId, text });
+      const receiverSocketId = userSocketMap[receiverId];
+      const isReceiverInChat = activeChatMap[receiverSocketId] === conversationId;
+
+      const message = new Message({ 
+        conversationId, 
+        senderId, 
+        text,
+        isRead: isReceiverInChat // Mark read immediately if receiver is in this chat
+      });
       await message.save();
 
       // Update conversation with last message reference
@@ -76,17 +106,32 @@ io.on("connection", (socket) => {
         lastMessage: message._id
       });
 
-      const receiverSocketId = userSocketMap[receiverId];
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("newMessage", message);
       }
+      
+      // Also emit back to sender to confirm saved/delivered
+      socket.emit("messageSent", message);
+
     } catch (err) {
       logger.error(`Socket Error: ${err.message}`);
     }
   });
 
-  socket.on("disconnect", () => {
-    if (userId) delete userSocketMap[userId];
+  socket.on("disconnect", async () => {
+    if (userId) {
+      delete userSocketMap[userId];
+      delete activeChatMap[socket.id];
+      
+      // Update user status to offline
+      try {
+        const User = require("./models/user.model");
+        await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: Date.now() });
+        io.emit("userStatusChanged", { userId, isOnline: false, lastSeen: new Date() });
+      } catch (err) {
+        logger.error(`Error updating offline status: ${err.message}`);
+      }
+    }
     logger.info(`User disconnected: ${userId}`);
   });
 });

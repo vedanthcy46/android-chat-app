@@ -89,8 +89,8 @@ interface ApiService {
     @POST("chat/conversation")
     suspend fun createConversation(@Body body: CreateConversationRequest): Response<Conversation>
 
-    @GET("chat/conversation/{userId}")
-    suspend fun getConversations(@Path("userId") userId: String): Response<List<Conversation>>
+    @GET("chat/conversations")
+    suspend fun getConversations(): Response<List<Conversation>>
 
     @GET("posts/reels")
     suspend fun getReels(): Response<List<Post>>
@@ -98,8 +98,15 @@ interface ApiService {
     @POST("chat/message")
     suspend fun sendMessage(@Body body: SendMessageRequest): Response<Message>
 
-    @GET("chat/message/{conversationId}")
+    @GET("chat/messages/{conversationId}")
     suspend fun getMessages(@Path("conversationId") convId: String): Response<List<Message>>
+
+    @PUT("chat/read/{conversationId}")
+    suspend fun markAsRead(@Path("conversationId") convId: String): Response<Map<String, String>>
+
+    @GET("chat/unread-count")
+    suspend fun getUnreadCount(): Response<UnreadCountResponse>
+
     @DELETE("posts/{id}")
     suspend fun deletePost(@Path("id") id: String): Response<Map<String, String>>
 }

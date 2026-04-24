@@ -8,10 +8,10 @@ import kotlinx.coroutines.flow.flow
 
 class ChatRepository(private val api: ApiService) {
 
-    fun getConversations(userId: String): Flow<Resource<List<Conversation>>> = flow {
+    fun getConversations(): Flow<Resource<List<Conversation>>> = flow {
         emit(Resource.Loading())
         try {
-            val res = api.getConversations(userId)
+            val res = api.getConversations()
             if (res.isSuccessful) emit(Resource.Success(res.body()!!))
             else emit(Resource.Error("Failed to load conversations"))
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
@@ -42,5 +42,19 @@ class ChatRepository(private val api: ApiService) {
             if (res.isSuccessful) emit(Resource.Success(res.body()!!))
             else emit(Resource.Error("Failed to send message"))
         } catch (e: Exception) { emit(Resource.Error(e.localizedMessage ?: "Network error")) }
+    }
+
+    fun markAsRead(conversationId: String): Flow<Resource<Unit>> = flow {
+        try {
+            val res = api.markAsRead(conversationId)
+            if (res.isSuccessful) emit(Resource.Success(Unit))
+        } catch (e: Exception) { /* ignore error for read status */ }
+    }
+
+    fun getUnreadCount(): Flow<Resource<Int>> = flow {
+        try {
+            val res = api.getUnreadCount()
+            if (res.isSuccessful) emit(Resource.Success(res.body()!!.totalUnread))
+        } catch (e: Exception) { /* ignore error */ }
     }
 }

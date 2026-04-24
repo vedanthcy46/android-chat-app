@@ -4,8 +4,10 @@ const chatController = require("../controllers/chat.controller");
 const { protectRoute } = require("../middleware/auth.middleware");
 
 router.post("/conversation", protectRoute, chatController.getConversation);
-router.get("/conversation/:userId", protectRoute, chatController.getUserConversations);
+router.get("/conversations", protectRoute, chatController.getUserConversations);
 router.post("/message", protectRoute, chatController.sendMessage);
-router.get("/message/:conversationId", protectRoute, chatController.getMessages);
+router.get("/messages/:conversationId", protectRoute, chatController.getMessages);
+router.put("/read/:conversationId", protectRoute, chatController.markAsRead);
+router.get("/unread-count", protectRoute, chatController.getUnreadCount);
 
 module.exports = router;

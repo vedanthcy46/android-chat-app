@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.app.kotlinmode.ui.theme.*
 import com.app.kotlinmode.viewmodel.ChatViewModel
+import com.app.kotlinmode.utils.Resource
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,27 +40,46 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     val messages by viewModel.messages.collectAsState()
     val receiverName by viewModel.receiverName.collectAsState()
+    val conversationsState by viewModel.conversations.collectAsState()
+
+    // Find the other member's status from the conversation list
+    val otherMember = remember(conversationsState) {
+        if (conversationsState is Resource.Success) {
+            val conv = (conversationsState as Resource.Success).data?.find { it.id == conversationId }
+            conv?.members?.find { it.id == receiverId }
+        } else null
+    }
 
     LaunchedEffect(conversationId) {
         viewModel.loadMessages(conversationId)
-        viewModel.startListening(conversationId, currentUserId)
+        viewModel.startChatListeners(conversationId, currentUserId)
     }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }
     }
 
-    DisposableEffect(Unit) { onDispose { viewModel.stopListening() } }
+    DisposableEffect(Unit) { onDispose { viewModel.stopChatListeners() } }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(
-                        text = receiverName ?: "Chat", 
-                        fontWeight = FontWeight.Bold, 
-                        color = TextPrimary 
-                    ) 
+                    Column {
+                        Text(
+                            text = receiverName ?: "Chat", 
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 16.sp,
+                            color = TextPrimary 
+                        )
+                        Text(
+                            text = if (otherMember?.isOnline == true) "Online" 
+                                   else if (otherMember?.lastSeen != null) "Last seen ${otherMember.lastSeen.take(16)}"
+                                   else "Offline",
+                            fontSize = 11.sp,
+                            color = if (otherMember?.isOnline == true) Color.Green else TextMuted
+                        )
+                    }
                 },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null, tint = TextPrimary) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurface)
@@ -118,7 +138,7 @@ fun ChatScreen(
         ) {
             items(messages, key = { it.id }) { msg ->
                 val isOwn = msg.sender == currentUserId
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start) {
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = if (isOwn) Alignment.End else Alignment.Start) {
                     Box(
                         modifier = Modifier.widthIn(max = 280.dp).background(
                             if (isOwn) Brush.linearGradient(listOf(BrandPrimary, BrandSecondary))
@@ -132,7 +152,22 @@ fun ChatScreen(
                     ) {
                         Column {
                             Text(msg.text, color = Color.White, fontSize = 15.sp)
-                            Text(msg.createdAt.take(16), color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.End)) {
+                                Text(
+                                    text = msg.createdAt.take(16), 
+                                    color = Color.White.copy(alpha = 0.6f), 
+                                    fontSize = 10.sp
+                                )
+                                if (isOwn) {
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = if (msg.isRead) "Seen" else "Delivered",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }

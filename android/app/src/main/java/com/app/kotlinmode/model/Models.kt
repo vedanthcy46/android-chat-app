@@ -33,11 +33,13 @@ data class AuthUser(
 data class User(
     @SerializedName("_id") val id: String,
     val username: String,
-    val email: String? = null,                                         // nullable — not all endpoints return email
+    val email: String? = null,
     @SerializedName("profilePic") val profilePicture: String? = null,
     val bio: String? = null,
     val followers: List<String> = emptyList(),
-    val following: List<String> = emptyList()
+    val following: List<String> = emptyList(),
+    val isOnline: Boolean = false,
+    val lastSeen: String? = null
 )
 
 data class UpdateUserRequest(
@@ -103,21 +105,25 @@ data class UploadResponse(
 data class ConversationMember(
     @SerializedName("_id") val id: String,
     val username: String,
-    @SerializedName("profilePic") val profilePicture: String? = null
+    @SerializedName("profilePic") val profilePicture: String? = null,
+    val isOnline: Boolean = false,
+    val lastSeen: String? = null
 )
 
 data class Conversation(
     @SerializedName("_id") val id: String,
     val members: List<ConversationMember>,
     val lastMessage: Message? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    val unreadCount: Int = 0
 )
 
 data class Message(
     @SerializedName("_id") val id: String,
     val conversationId: String,
-    @SerializedName("senderId") val sender: String,  // backend field is 'senderId'
+    @SerializedName("senderId") val sender: String,
     val text: String,
+    val isRead: Boolean = false,
     val createdAt: String
 )
 
@@ -125,6 +131,8 @@ data class CreateConversationRequest(val receiverId: String)
 
 data class SendMessageRequest(
     val conversationId: String,
-    @SerializedName("senderId") val sender: String,  // backend expects 'senderId' in body
+    @SerializedName("senderId") val sender: String,
     val text: String
 )
+
+data class UnreadCountResponse(val totalUnread: Int)

@@ -30,7 +30,10 @@ fun ConversationListScreen(
     currentUserId: String,
     onConversationClick: (conversationId: String, otherUserId: String, receiverName: String) -> Unit
 ) {
-    LaunchedEffect(Unit) { viewModel.loadConversations(currentUserId) }
+    LaunchedEffect(Unit) { 
+        viewModel.loadConversations() 
+        viewModel.startGlobalListeners()
+    }
 
     val state by viewModel.conversations.collectAsState()
 
@@ -49,7 +52,7 @@ fun ConversationListScreen(
                 is Resource.Error   -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(s.message ?: "Error", color = ErrorRed)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { viewModel.loadConversations(currentUserId) }) { Text("Retry") }
+                    Button(onClick = { viewModel.loadConversations() }) { Text("Retry") }
                 }
                 is Resource.Success -> {
                     val convos = s.data ?: emptyList()
@@ -62,7 +65,6 @@ fun ConversationListScreen(
                     } else {
                         LazyColumn {
                             items(convos, key = { it.id }) { convo ->
-                                // members is a list of ConversationMember objects (populated by backend)
                                 val other: ConversationMember? = convo.members.firstOrNull { it.id != currentUserId }
 
                                 Row(
@@ -74,29 +76,63 @@ fun ConversationListScreen(
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Box(
-                                        modifier = Modifier.size(50.dp).clip(CircleShape)
-                                            .background(Brush.linearGradient(listOf(BrandPrimary, BrandSecondary))),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = other?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp
-                                        )
+                                    Box {
+                                        Box(
+                                            modifier = Modifier.size(50.dp).clip(CircleShape)
+                                                .background(Brush.linearGradient(listOf(BrandPrimary, BrandSecondary))),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = other?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp
+                                            )
+                                        }
+                                        
+                                        // Online status dot
+                                        if (other?.isOnline == true) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .align(Alignment.BottomEnd)
+                                                    .background(Color.Black, CircleShape)
+                                                    .padding(2.dp)
+                                                    .background(Color.Green, CircleShape)
+                                            )
+                                        }
                                     }
+
                                     Spacer(Modifier.width(14.dp))
-                                    Column {
+                                    Column(Modifier.weight(1f)) {
                                         Text(
                                             text = other?.username ?: "Unknown",
                                             color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
                                         )
                                         Text(
                                             text = convo.lastMessage?.text ?: "Tap to chat",
-                                            color = TextMuted,
+                                            color = if (convo.unreadCount > 0) TextPrimary else TextMuted,
+                                            fontWeight = if (convo.unreadCount > 0) FontWeight.Bold else FontWeight.Normal,
                                             fontSize = 12.sp,
                                             maxLines = 1,
                                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
+                                    }
+
+                                    // Unread badge
+                                    if (convo.unreadCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .clip(CircleShape)
+                                                .background(BrandPrimary),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${convo.unreadCount}",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                                 Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DarkCard))
