@@ -59,8 +59,8 @@ class FeedViewModel(private val repo: PostRepository) : ViewModel() {
             if (result is Resource.Success) {
                 updatePostInState(result.data!!)
             } else if (result is Resource.Error) {
-                // On error, we should ideally refresh to revert, but updatePostInState usually handles it
-                loadFeed() 
+                // If it fails, we just don't do anything or we could revert
+                // But definitely DON'T loadFeed() as it causes a full UI refresh jump
             }
         }.launchIn(viewModelScope)
     }

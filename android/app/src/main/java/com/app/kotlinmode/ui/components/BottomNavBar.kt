@@ -22,9 +22,11 @@ sealed class BottomNavItem(
     object Profile : BottomNavItem("profile", "Profile", Icons.Filled.Person, Icons.Outlined.Person)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomNavBar(
     currentRoute: String?,
+    unreadCount: Int = 0,
     onNavigate: (String) -> Unit
 ) {
     val items = listOf(
@@ -43,10 +45,20 @@ fun BottomNavBar(
                 selected = selected,
                 onClick = { onNavigate(item.route) },
                 icon = {
-                    Icon(
-                        if (selected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label
-                    )
+                    BadgedBox(
+                        badge = {
+                            if (item is BottomNavItem.Chat && unreadCount > 0) {
+                                Badge(containerColor = BrandPrimary) {
+                                    Text(if (unreadCount > 99) "99+" else "$unreadCount")
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            if (selected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label
+                        )
+                    }
                 },
                 label = { Text(item.label) },
                 colors = NavigationBarItemDefaults.colors(

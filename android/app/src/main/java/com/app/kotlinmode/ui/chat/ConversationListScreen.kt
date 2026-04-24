@@ -32,7 +32,6 @@ fun ConversationListScreen(
 ) {
     LaunchedEffect(Unit) { 
         viewModel.loadConversations() 
-        viewModel.startGlobalListeners()
     }
 
     val state by viewModel.conversations.collectAsState()

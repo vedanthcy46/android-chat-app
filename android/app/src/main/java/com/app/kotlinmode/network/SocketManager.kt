@@ -71,6 +71,7 @@ object SocketManager {
 
     /** Registers a listener for incoming "newMessage" events. */
     fun onNewMessage(callback: (JSONObject) -> Unit) {
+        socket?.off("newMessage")
         socket?.on("newMessage") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
             callback(data)
@@ -79,6 +80,7 @@ object SocketManager {
 
     /** Registers a listener for user online/offline status changes. */
     fun onUserStatusChanged(callback: (userId: String, isOnline: Boolean, lastSeen: String?) -> Unit) {
+        socket?.off("userStatusChanged")
         socket?.on("userStatusChanged") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
             val userId = data.optString("userId")
@@ -90,6 +92,7 @@ object SocketManager {
 
     /** Registers a listener for message delivery confirmation. */
     fun onMessageSent(callback: (JSONObject) -> Unit) {
+        socket?.off("messageSent")
         socket?.on("messageSent") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
             callback(data)

@@ -12,6 +12,7 @@ const errorHandler = require("./middleware/error.middleware");
 const logger = require("./utils/logger");
 const Message = require("./models/message.model");
 const Conversation = require("./models/conversation.model");
+const User = require("./models/user.model");
 
 
 const helmet = require("helmet");
@@ -68,8 +69,8 @@ io.on("connection", async (socket) => {
     
     // Update user status to online
     try {
-      const User = require("./models/user.model");
       await User.findByIdAndUpdate(userId, { isOnline: true });
+      logger.info(`Broadcasting online status for ${userId}`);
       io.emit("userStatusChanged", { userId, isOnline: true });
     } catch (err) {
       logger.error(`Error updating online status: ${err.message}`);
@@ -125,9 +126,9 @@ io.on("connection", async (socket) => {
       
       // Update user status to offline
       try {
-        const User = require("./models/user.model");
         await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: Date.now() });
-        io.emit("userStatusChanged", { userId, isOnline: false, lastSeen: new Date() });
+        logger.info(`Broadcasting offline status for ${userId}`);
+        io.emit("userStatusChanged", { userId, isOnline: false, lastSeen: new Date().toISOString() });
       } catch (err) {
         logger.error(`Error updating offline status: ${err.message}`);
       }

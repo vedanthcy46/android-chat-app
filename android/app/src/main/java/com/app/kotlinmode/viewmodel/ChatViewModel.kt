@@ -24,10 +24,30 @@ class ChatViewModel(private val repo: ChatRepository) : ViewModel() {
     private val _totalUnreadCount = MutableStateFlow(0)
     val totalUnreadCount: StateFlow<Int> = _totalUnreadCount.asStateFlow()
 
+    // Map to track the most recent online status of users (userId -> isOnline)
+    // This helps sync status even if the conversation list hasn't loaded yet
+    private val presenceMap = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    private val lastSeenMap = MutableStateFlow<Map<String, String?>>(emptyMap())
+
     fun setReceiverName(name: String) { _receiverName.value = name }
 
     fun loadConversations() {
-        repo.getConversations().onEach { _conversations.value = it }.launchIn(viewModelScope)
+        repo.getConversations().onEach { result ->
+            if (result is Resource.Success) {
+                // Apply current known presence to the freshly loaded list
+                val list = result.data ?: emptyList()
+                val syncedList = list.map { conv ->
+                    conv.copy(members = conv.members.map { member ->
+                        val currentOnline = presenceMap.value[member.id] ?: member.isOnline
+                        val currentLastSeen = lastSeenMap.value[member.id] ?: member.lastSeen
+                        member.copy(isOnline = currentOnline, lastSeen = currentLastSeen)
+                    })
+                }
+                _conversations.value = Resource.Success(syncedList)
+            } else {
+                _conversations.value = result
+            }
+        }.launchIn(viewModelScope)
         updateTotalUnreadCount()
     }
 
@@ -98,6 +118,11 @@ class ChatViewModel(private val repo: ChatRepository) : ViewModel() {
         }
 
         SocketManager.onUserStatusChanged { userId, isOnline, lastSeen ->
+            // 1. Update the permanent presence maps
+            presenceMap.value = presenceMap.value + (userId to isOnline)
+            lastSeenMap.value = lastSeenMap.value + (userId to lastSeen)
+
+            // 2. Apply to the current conversation list if it's already loaded
             if (_conversations.value is Resource.Success) {
                 val currentList = (_conversations.value as Resource.Success).data ?: emptyList()
                 _conversations.value = Resource.Success(

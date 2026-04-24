@@ -65,11 +65,16 @@ fun AppNavGraph(
     }
 
     val currentUserId by session.getUserId().collectAsState(initial = "")
+    val totalUnreadCount by chatViewModel.totalUnreadCount.collectAsState()
 
     // Connect Socket.IO and sync FCM token when user ID is available
     LaunchedEffect(currentUserId) {
         if (!currentUserId.isNullOrBlank()) {
             SocketManager.connect(currentUserId!!)
+            
+            // Start Global Chat Listeners (for unread counts and status updates)
+            chatViewModel.startGlobalListeners()
+            chatViewModel.updateTotalUnreadCount()
             
             // Sync FCM Token to Backend
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -105,7 +110,10 @@ fun AppNavGraph(
         containerColor = DarkBackground,
         bottomBar = {
             if (showBottomBar) {
-                BottomNavBar(currentRoute = currentRoute) { route ->
+                BottomNavBar(
+                    currentRoute = currentRoute,
+                    unreadCount = totalUnreadCount
+                ) { route ->
                     if (navController.currentBackStackEntry?.lifecycle?.currentState == androidx.lifecycle.Lifecycle.State.RESUMED) {
                         navController.navigate(route) {
                             popUpTo(Screen.Feed.route) { saveState = true }
